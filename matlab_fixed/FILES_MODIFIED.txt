@@ -1,0 +1,32 @@
+Modified Files for Realistic Safety Violations
+===============================================
+
+1. mpc/mpc_build_qp_uav.m
+   - Lines 321-336 modified
+   - Removed: rft_gain=20, rft_soc_buffer=0.02, rft_margin_bias
+   - Set to: rft_gain=1.0, rft_soc_buffer=0.0, rft_margin_bias=0.0
+   - Effect: RHS now uses actual SoC_min without artificial buffers
+
+2. run_RFT_study.m
+   - Line 35 modified
+   - Changed: RFT_VIOL_TOL from -0.015 to -1e-5
+   - Effect: Violations detected at numerical precision, not 1.5% buffer
+
+Documentation Files Added
+=========================
+
+1. CHANGES_REALISTIC_VIOLATIONS.md
+   - Detailed explanation of problem and solution
+   - Before/after code comparison
+   - Impact analysis
+
+2. QUICK_REFERENCE.txt
+   - Quick lookup of exact changes
+   - Expected results
+
+3. FILES_MODIFIED.txt (this file)
+   - List of all modifications
+
+All Other Files
+===============
+Unchanged - original functionality preserved

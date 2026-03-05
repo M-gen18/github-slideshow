@@ -1,0 +1,64 @@
+================================================================================
+EXACT CHANGES - SIDE BY SIDE COMPARISON
+================================================================================
+
+FILE 1: mpc/mpc_build_qp_uav.m (Lines 321-336)
+--------------------------------------------------------------------------------
+
+BEFORE (Artificial Buffers):                AFTER (Realistic):
+------------------------------------        ------------------------------------
+rft_gain = max(getfield_def(               rft_gain = 1.0;
+    mpc,'rft_gain',20), 1);                 
+
+rft_soc_buffer = max(getfield_def(         rft_soc_buffer = 0.0;
+    mpc,'rft_soc_buffer',0.02), 0);         
+
+rft_margin_bias = max(getfield_def(        rft_margin_bias = 0.0;
+    mpc,'rft_margin_bias',0.0), 0);         
+
+urgency = min(1, alpha *                    urgency = alpha;
+    (rft_gain / 20));                       
+
+SoC_floor = SoC_min +                       SoC_floor = SoC_min;
+    rft_soc_buffer*urgency;                 
+
+SoC_floor = max(SoC_floor, SoC_min);        SoC_floor = max(SoC_floor, SoC_min);
+
+SoC_floor = min(SoC_floor,                  SoC_floor = min(SoC_floor,
+    SoC_max - 1e-3);                            SoC_max - 1e-3);
+
+% Bias correction for systematic           % RHS computed without bias
+% negative margins                          
+
+RHS = SoC_k + (SoC_floor - SoC_k)          RHS = SoC_k + (SoC_floor - SoC_k)
+    *alpha - rft_margin_bias;                  *alpha;
+
+
+FILE 2: run_RFT_study.m (Line 35)
+--------------------------------------------------------------------------------
+
+BEFORE:                                     AFTER:
+------------------------------------        ------------------------------------
+RFT_VIOL_TOL = -0.015;                     RFT_VIOL_TOL = -1e-5;
+% (1.5% dip is the "real" violation)       % True violation
+
+
+================================================================================
+IMPACT SUMMARY
+================================================================================
+
+Parameter Changes:
+  rft_gain:        20    → 1.0     (No 20x urgency amplification)
+  rft_soc_buffer:  0.02  → 0.0     (No 2% SoC buffer)
+  rft_margin_bias: var   → 0.0     (No bias correction)
+  RFT_VIOL_TOL:   -0.015 → -1e-5   (Strict numerical tolerance)
+
+RHS Formula Change:
+  BEFORE: RHS = SoC_k + (SoC_min + 2%*urgency - SoC_k)*alpha - bias
+  AFTER:  RHS = SoC_k + (SoC_min - SoC_k)*alpha
+
+Result:
+  BEFORE: Safety_Violation_Pct = 0% (artificially safe)
+  AFTER:  Safety_Violation_Pct = realistic (5-20% expected)
+
+================================================================================

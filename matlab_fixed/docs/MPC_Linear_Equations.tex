@@ -1,0 +1,91 @@
+\documentclass[10pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{hyperref}
+
+\title{Linear MPC (QP) for Battery-Only Fixed-Wing UAV: Formulation and Discussion}
+\author{(Your Name)}
+\date{2026-02-07}
+
+\begin{document}
+\maketitle
+
+\section{Model used by MPC}
+MPC uses the reduced state
+\[
+x_k = \begin{bmatrix}\mathrm{SoC}_k & v_{1,k} & v_{2,k} & T_k\end{bmatrix}^\top,\qquad u_k = I_k,
+\]
+with sampling time $T_s$.
+
+The discrete-time affine prediction model is
+\[
+x_{k+1} = A_d x_k + B_d u_k + E_d T_{amb,k} + c_d.
+\]
+The electrical part is a 2RC Thevenin equivalent circuit (Euler discretization):
+\begin{align}
+\mathrm{SoC}_{k+1} &= \mathrm{SoC}_k - \frac{T_s}{Q_{nom}} I_k,\\
+v_{1,k+1} &= \left(1-\frac{T_s}{R_1 C_1}\right) v_{1,k} + \frac{T_s}{C_1} I_k,\\
+v_{2,k+1} &= \left(1-\frac{T_s}{R_2 C_2}\right) v_{2,k} + \frac{T_s}{C_2} I_k.
+\end{align}
+Thermal dynamics use a lumped model with Joule heating:
+\[
+T_{k+1} = T_k + \frac{T_s}{C_{th}}\left(I_k^2 R_{loss} - hA(T_k-T_{amb,k})\right).
+\]
+To retain a convex QP, the $I^2$ term is linearized around the operating point $I_0$:
+\[
+I_k^2 \approx I_0^2 + 2I_0(I_k-I_0),
+\]
+yielding an affine temperature update.
+
+\section{Linearized voltage and delivered power}
+Terminal voltage:
+\[
+V_t = V_{oc}(\mathrm{SoC}) - v_1 - v_2 - R_0 I.
+\]
+Linearization of $V_{oc}(\mathrm{SoC})$ around $\mathrm{SoC}_0$:
+\[
+V_{oc}(\mathrm{SoC}) \approx V_{oc}(\mathrm{SoC}_0) + \left.\frac{dV_{oc}}{d\mathrm{SoC}}\right|_0 (\mathrm{SoC}-\mathrm{SoC}_0),
+\]
+gives an affine map:
+\[
+V_t \approx c_v^\top x + d_v u + e_v.
+\]
+Delivered battery power:
+\[
+P_{del} = V_t I = (V_{oc}(\mathrm{SoC})-v_1-v_2-R_0 I)I.
+\]
+Linearization around $(x_0,u_0)$ yields:
+\[
+P_{del} \approx c_p^\top x + d_p u + e_p.
+\]
+
+\section{QP optimization problem (Linear MPC)}
+Given a forecast of demanded battery power $P_{dem,k+i}$ for $i=0,\dots,N-1$, solve:
+\begin{align}
+\min_{u_k,\dots,u_{k+N-1}}\quad
+&\sum_{i=0}^{N-1}\Big(
+q_P (P_{del,k+i}-P_{dem,k+i})^2
++ q_I u_{k+i}^2
++ q_{\Delta I}(u_{k+i}-u_{k+i-1})^2
+\Big) + q_F(\mathrm{SoC}_{k+N}-\mathrm{SoC}_{target})^2 \\
+\text{s.t.}\quad
+&x_{k+i+1} = A_d x_{k+i} + B_d u_{k+i} + E_d T_{amb,k+i} + c_d,\\
+&\mathrm{SoC}_{min} \le \mathrm{SoC}_{k+i} \le \mathrm{SoC}_{max},\\
+&I_{min} \le u_{k+i} \le I_{max},\\
+&V_{min} \le c_v^\top x_{k+i} + d_v u_{k+i} + e_v \le V_{max},\\
+&T_{k+i} \le T_{max}.
+\end{align}
+All constraints are affine and the objective is quadratic $\Rightarrow$ a convex QP.
+
+\section{Discussion: what Linear MPC adds (and the gap for Slack-MPC)}
+\paragraph{Baseline limitation.}
+A rule-based BMS reacts myopically: it matches instantaneous demand but does not explicitly optimize future constraint headroom or smooth stress.
+
+\paragraph{Linear MPC contribution.}
+Linear MPC provides a principled tradeoff between demand tracking and battery stress under hard constraints, and can shape endurance via a terminal SoC term. Publishable metrics include peak/RMS current reduction, smoother current, and improved voltage margin behavior.
+
+\paragraph{Remaining gap motivating Slack-MPC.}
+Aggressive transients or model mismatch can make the QP infeasible under tight voltage bounds. Slack-MPC introduces nonnegative slack variables to soften selected constraints (or tracking) with large penalties, guaranteeing feasibility while quantifying violations.
+
+\end{document}
