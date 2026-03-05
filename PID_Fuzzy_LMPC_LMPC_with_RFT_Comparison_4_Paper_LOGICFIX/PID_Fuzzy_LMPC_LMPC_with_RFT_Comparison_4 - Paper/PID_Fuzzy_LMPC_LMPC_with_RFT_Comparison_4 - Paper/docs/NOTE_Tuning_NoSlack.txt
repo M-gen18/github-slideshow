@@ -1,0 +1,17 @@
+Why MPC may not increase endurance (no slack):
+--------------------------------------------
+If the mission demand profile (battery-side power demand) is fixed and must be met,
+total required energy is essentially fixed. MPC cannot create energy; it can only:
+
+  (i) reduce losses (mainly I^2R) by smoothing and limiting current peaks, and
+ (ii) manage constraints more gracefully (voltage/temp margins).
+
+Therefore, you should expect:
+- clear improvements in stress metrics (Irms, Ipk, Vmin margin),
+- modest endurance improvements at best,
+- and endurance *worsening* if MPC tracks more aggressively than a baseline that
+  occasionally under-delivers.
+
+A CDC-relevant storyline (still no slack):
+- Show MPC reduces Irms / peak current and increases voltage margin while keeping
+  unmet energy below a small threshold (e.g., <= 1% of mission energy).
